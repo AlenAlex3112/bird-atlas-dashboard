@@ -1,0 +1,216 @@
+html, body, .map-parent, .map-parent>div, .map-container  {
+    height: 100%;
+}
+
+.map-parent {
+    padding: 0 0 51px 0;
+}
+
+.navbar {
+    margin: 0;
+}
+
+#nav-pills-container {
+    margin-top: 5px;
+}
+
+.spinner
+{
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+    background: url(../images/loading.gif) 50% 50% no-repeat;
+}
+
+.settings-dropdown {
+    margin: 10px;
+}
+
+.settings-dropdown li {
+    padding-left: 5px;
+    padding-bottom: 5px;
+}
+
+.settings-dropdown label {
+    font-size: small;
+    font-weight: normal;
+}
+
+
+    /* Custom styles for the logo placement */
+    .navbar-header {
+        display: flex; /* Use flexbox for layout */
+        flex-direction: column; /* Stack children vertically */
+        align-items: flex-start; /* Align children to the left */
+        justify-content: center; /* Center vertically if needed */
+        padding-top: 10px; /* Add some padding at the top */
+        padding-bottom: 5px; /* Add some padding at the bottom */
+    }
+
+    .navbar-header .navbar-brand {
+        line-height: normal; /* Reset line-height if needed */
+        height: auto; /* Allow height to adjust */
+        padding-top: 0;
+        padding-bottom: 0;
+        margin-right: 0; /* Remove extra margin if any */
+        margin-left: 15px; /* Match original left margin */
+    }
+
+    .brand-logo-container {
+        margin-left: 20px; /* Align with the title text */
+        margin-top: 5px; /* Space between title and logo */
+        max-width: 125px; /* Max width to constrain the logo */
+        /* You might need to adjust this max-width to match your "Bird Atlas Dashboard" text width */
+    }
+
+    .brand-logo {
+        width: 100%; /* Make the image take 100% of its container's width */
+        height: auto; /* Maintain aspect ratio */
+        display: block; /* Remove extra space below image */
+    }
+    
+#landing-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80%; /* Restrict width so text doesn't span the whole screen */
+    z-index: 0;
+    text-align: center;
+}
+
+/* Main Heading Style */
+#landing-message h1 {
+    font-weight: bold;
+    font-size: 3em; 
+    color: rgba(0, 0, 0, 0.4); /* Light Grey */
+    margin-bottom: 20px;
+}
+
+/* Paragraph Text Style */
+#landing-message p {
+    font-size: 1.5em;
+    color: rgba(0, 0, 0, 0.3); /* Slightly lighter grey */
+    margin-bottom: 10px;
+    line-height: 1.5; /* Makes multi-line text easier to read */
+}
+
+/* Link Style */
+#landing-message .landing-link {
+    margin-top: 25px;
+}
+
+#landing-message a {
+    font-size: 1.2em;
+    color: #295BA7; /* Blue color for the link */
+    text-decoration: none;
+    border-bottom: 1px dotted #295BA7; /* Subtle underline */
+}
+
+#landing-message a:hover {
+    color: #00008B; /* Darker blue on hover */
+    text-decoration: none;
+    border-bottom: 1px solid #00008B;
+}
+
+#landing-message .landing-logo {
+    max-width: 200px; /* Limits width so it doesn't dominate */
+    height: auto;     /* Maintains aspect ratio */
+    opacity: 0.8;     /* Slight transparency to match the text vibe */
+    margin-top: 10px; /* Fine-tune spacing if needed */
+}
+
+.leaflet-popup-content {
+    font-size: 15px !important; /* Change this number to make it bigger/smaller */
+    line-height: 1.6;           /* Adds breathing room between lines */
+}
+
+/* 2. Increase font size in the Menu/Legend */
+.settings-dropdown li {
+    font-size: 14px !important; /* Adjust as needed */
+}
+
+/* 3. Increase font size of the "View List" links inside popups */
+.leaflet-popup-content a {
+    font-size: 15px !important;
+    font-weight: bold;
+}
+
+.leaflet-tooltip {
+    font-size: 16px !important; /* Adjust size here */
+    font-weight: bold !important;
+    color: #333 !important;
+    border: 1px solid #333; /* Optional: Makes the box pop more */
+}
+
+/* Force the container to lay out items in a row */
+.leaflet-top.leaflet-right {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: flex-start !important;
+    pointer-events: none; /* Allows clicking map through empty space */
+}
+
+/* Add spacing between the side-by-side buttons */
+.leaflet-top.leaflet-right .leaflet-control {
+    margin-left: 10px !important; /* Adds gap between the two buttons */
+    margin-top: 10px !important;  /* Ensures spacing from the top edge */
+    pointer-events: auto;         /* Re-enables clicking on the buttons */
+}
+
+.leaflet-top.leaflet-right {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: flex-start !important; /* Align to top */
+    pointer-events: none; /* Allow clicks to pass through empty space */
+    margin-top: 10px;
+    margin-right: 10px;
+}
+
+/* 2. Reset styles for ALL controls in this corner */
+.leaflet-top.leaflet-right .leaflet-control {
+    margin: 0 !important;
+    margin-left: 10px !important; /* Add space between the buttons */
+    pointer-events: auto;
+    background: white;
+    border: 2px solid rgba(0,0,0,0.2);
+    border-radius: 4px;
+    box-shadow: none !important;
+    background-clip: padding-box;
+}
+
+/* 3. Specific Style for the Layers Toggle (The Map Icon) */
+.leaflet-control-layers {
+    min-width: 50px;
+    min-height: 50px;
+}
+
+.leaflet-control-layers-toggle {
+    width: 50px !important;
+    height: 45px !important;
+    background-size: 30px 30px !important;
+}
+
+/* 4. Specific Style for the Hamburger Menu (The Menu Icon) */
+.leaflet-bar.leaflet-control {
+    width: 50px !important;
+    height: 50px !important;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0 !important; /* Remove internal padding */
+}
+
+/* Fix the button inside the hamburger control */
+.leaflet-bar.leaflet-control button {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+.leaflet-control-layers label {
+    font-size: 12px !important; /* Adjust this number (e.g., 16px for bigger) */
+    font-weight: normal !important; /* Keeps it readable */
+    margin-bottom: 3px; /* Adds a little space between options */
+}
