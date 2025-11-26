@@ -104,31 +104,31 @@ const BirdCount = (function () {
         },
 
         drawMap: function (sheetData) {
-            // 1. Calculate Data Bounds
             this.dataBounds = this._calculateBounds(sheetData['coordinates']);
             
-            // 2. Define Hard Limits (India)
+            // 1. Define the Strict Cage (India)
             const restrictedBounds = [[5.0, 65.0], [33.0, 100.0]];
 
             if (!this.map) {
                 // --- Initialize Layers with Strict Cropping ---
+                // We apply 'bounds' to ALL layers so nothing leaks out.
                 
                 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     maxZoom: 19,
                     attribution: '© OpenStreetMap',
-                    bounds: restrictedBounds,
-                    noWrap: true // <--- NEW: Prevents world from repeating
+                    bounds: restrictedBounds, // <--- CROP
+                    noWrap: true
                 });
 
                 const satelliteBase = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
                     attribution: 'Tiles &copy; Esri',
-                    bounds: restrictedBounds,
-                    noWrap: true // <--- NEW
+                    bounds: restrictedBounds, // <--- CROP
+                    noWrap: true
                 });
                 
                 const satelliteLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-                    bounds: restrictedBounds,
-                    noWrap: true // <--- NEW
+                    bounds: restrictedBounds, // <--- CROP (Critical for labels)
+                    noWrap: true
                 });
                 
                 const satelliteHybrid = L.layerGroup([satelliteBase, satelliteLabels]);
@@ -138,11 +138,17 @@ const BirdCount = (function () {
                     layers: [osm],
                     zoomControl: true,
                     fullscreenControl: true,
-                    maxBounds: restrictedBounds, // The Cage
-                    maxBoundsViscosity: 1.0,     // Solid Walls
-                    inertia: false,              // No sliding
-                    bounceAtZoomLimits: false,   // No bouncing when zooming out
-                    minZoom: 4                   // Temporary safety default
+                    
+                    // 2. Lock the User Movement
+                    maxBounds: restrictedBounds,
+                    maxBoundsViscosity: 1.0,   // Hard Wall
+                    
+                    // 3. Mobile & Zoom Optimizations
+                    zoomSnap: 0,               // Allow exact zoom levels (e.g. 4.35)
+                    zoomDelta: 0.5,            // Smoother zooming
+                    inertia: false,            // Stop sliding
+                    bounceAtZoomLimits: false, // Stop bouncing
+                    minZoom: 1                 // Temporary
                 });
 
                 const baseMaps = {
@@ -152,15 +158,16 @@ const BirdCount = (function () {
                 L.control.layers(baseMaps).addTo(this.map);
                 this._addCustomControls();
 
-                // --- *** THE MOBILE FIX *** ---
-                // Calculate exactly what zoom level fits the India box on THIS specific screen.
-                // This prevents the user from ever zooming out far enough to see white space.
-                const perfectFitZoom = this.map.getBoundsZoom(restrictedBounds);
-                this.map.setMinZoom(perfectFitZoom);
-                this.map.fitBounds(restrictedBounds); 
+                // 4. Calculate the "Floor"
+                // Force map to fit the box exactly right now
+                this.map.fitBounds(restrictedBounds);
+                
+                // Lock the door so they can't zoom out further than this exact view
+                const exactFitZoom = this.map.getBoundsZoom(restrictedBounds);
+                this.map.setMinZoom(exactFitZoom);
             }
             
-            // 3. Zoom to District Data
+            // 5. Zoom to District Data (if available)
             if (this.dataBounds) {
                 this.map.fitBounds(this.dataBounds);
             }
