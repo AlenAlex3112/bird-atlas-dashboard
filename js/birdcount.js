@@ -104,46 +104,45 @@ const BirdCount = (function () {
         },
 
         drawMap: function (sheetData) {
+            // 1. Calculate Data Bounds
             this.dataBounds = this._calculateBounds(sheetData['coordinates']);
             
-            // 1. Define the Cage (India)
+            // 2. Define Hard Limits (India)
             const restrictedBounds = [[5.0, 65.0], [33.0, 100.0]];
 
             if (!this.map) {
+                // --- Initialize Layers with Strict Cropping ---
+                
                 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     maxZoom: 19,
                     attribution: '© OpenStreetMap',
                     bounds: restrictedBounds,
-                    noWrap: true
+                    noWrap: true // <--- NEW: Prevents world from repeating
                 });
 
                 const satelliteBase = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
                     attribution: 'Tiles &copy; Esri',
                     bounds: restrictedBounds,
-                    noWrap: true
+                    noWrap: true // <--- NEW
                 });
                 
                 const satelliteLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
                     bounds: restrictedBounds,
-                    noWrap: true
+                    noWrap: true // <--- NEW
                 });
                 
                 const satelliteHybrid = L.layerGroup([satelliteBase, satelliteLabels]);
 
-                // 2. Initialize Map
+                // --- Initialize Map ---
                 this.map = L.map(this.options.mapContainerId, {
                     layers: [osm],
                     zoomControl: true,
                     fullscreenControl: true,
-                    
-                    // --- THE MOBILE FIX ---
-                    maxBounds: restrictedBounds,
-                    maxBoundsViscosity: 1.0,   // Solid wall
-                    zoomSnap: 0,               // Allow fractional zoom (e.g., 4.35) for perfect fit
-                    zoomDelta: 0.5,            // Make zoom buttons smoother
-                    inertia: false,            // No sliding momentum
-                    bounceAtZoomLimits: false, // No bouncing effect
-                    minZoom: 1                 // Temporary start value
+                    maxBounds: restrictedBounds, // The Cage
+                    maxBoundsViscosity: 1.0,     // Solid Walls
+                    inertia: false,              // No sliding
+                    bounceAtZoomLimits: false,   // No bouncing when zooming out
+                    minZoom: 4                   // Temporary safety default
                 });
 
                 const baseMaps = {
@@ -153,19 +152,15 @@ const BirdCount = (function () {
                 L.control.layers(baseMaps).addTo(this.map);
                 this._addCustomControls();
 
-                // 3. Calculate and Set the "Floor"
-                // We force the map to fit the restricted bounds perfectly right now.
-                this.map.fitBounds(restrictedBounds);
-                
-                // We ask Leaflet: "What is the exact zoom level right now?"
-                const exactFitZoom = this.map.getZoom();
-                
-                // We set that exact number as the minimum. 
-                // The user can never pinch-zoom out further than this.
-                this.map.setMinZoom(exactFitZoom);
+                // --- *** THE MOBILE FIX *** ---
+                // Calculate exactly what zoom level fits the India box on THIS specific screen.
+                // This prevents the user from ever zooming out far enough to see white space.
+                const perfectFitZoom = this.map.getBoundsZoom(restrictedBounds);
+                this.map.setMinZoom(perfectFitZoom);
+                this.map.fitBounds(restrictedBounds); 
             }
             
-            // 4. Zoom to specific district data if available
+            // 3. Zoom to District Data
             if (this.dataBounds) {
                 this.map.fitBounds(this.dataBounds);
             }
