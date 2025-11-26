@@ -4,7 +4,7 @@ A simple tool for map visualization of Bird Atlases. The Map will show the curre
 
 The data is read from a set of google sheets maintained by the Birders.
 
-The site is published via github pages. https://alenalex3112.github.io/bird-atlas-dashboard/
+The site is published via github pages. https://alenalex3112.github.io/bird-atlas-dashboard-OSM/
 
 
 This is a modified version of the original one at https://github.com/birdatlaskerala/atlas
