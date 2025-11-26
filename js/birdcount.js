@@ -104,34 +104,43 @@ const BirdCount = (function () {
         },
 
         drawMap: function (sheetData) {
-            // 1. Calculate bounds for initial zoom
-            const dataBounds = this._calculateBounds(sheetData['coordinates']);
+            // 1. Calculate the bounds of the specific district data (for initial centering)
+            this.dataBounds = this._calculateBounds(sheetData['coordinates']);
             
+            // 2. Define the Country-Level Hard Limits
+            const restrictedBounds = [[5.0, 65.0], [33.0, 100.0]];
+
             if (!this.map) {
+                // --- Initialize Layers with 'bounds' option ---
+                // This ensures tiles DO NOT load outside the country box
+                
                 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     maxZoom: 19,
-                    attribution: '© OpenStreetMap'
+                    attribution: '© OpenStreetMap',
+                    bounds: restrictedBounds // Crop tiles
                 });
 
                 const satelliteBase = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                    attribution: 'Tiles &copy; Esri'
+                    attribution: 'Tiles &copy; Esri',
+                    bounds: restrictedBounds // Crop tiles
                 });
                 
-                const satelliteLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}');
+                const satelliteLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+                    bounds: restrictedBounds // Crop tiles
+                });
+                
                 const satelliteHybrid = L.layerGroup([satelliteBase, satelliteLabels]);
 
-                // --- DEFINE THE HARD LIMITS HERE ---
-                    const restrictedBounds = [[5.0, 65.0], [33.0, 100.0]];
-
+                // --- Initialize Map with ALL your requested features ---
                 this.map = L.map(this.options.mapContainerId, {
                     layers: [osm],
                     zoomControl: true,
-                    fullscreenControl: true,
-                    maxBounds: restrictedBounds,
-                    maxBoundsViscosity: 1.0, // Makes the edge solid (no bouncing)
-                    minZoom: 15, // (Decrease if more zoom out rquired)
-                    inertia: false,           // Stops momentum panning (no sliding after let go)
-                    bounceAtZoomLimits: false
+                    fullscreenControl: true,     // Adds the fullscreen button
+                    maxBounds: restrictedBounds, // Hard limit to India area
+                    maxBoundsViscosity: 1.0,     // Solid wall (no bouncing at edge)
+                    minZoom: 8,                  // As requested (User cannot zoom out too far)
+                    inertia: false,              // Stops momentum panning
+                    bounceAtZoomLimits: false    // Stops bouncing when zooming
                 });
 
                 const baseMaps = {
@@ -142,8 +151,9 @@ const BirdCount = (function () {
                 this._addCustomControls();
             }
             
-            if (dataBounds) {
-                this.map.fitBounds(dataBounds);
+            // 3. Move the camera to the specific district data
+            if (this.dataBounds) {
+                this.map.fitBounds(this.dataBounds);
             }
 
             this.processCoordinates(sheetData['coordinates']);
@@ -426,7 +436,17 @@ const BirdCount = (function () {
                     $(container).find('.clusterChkBox').on('click', _.bind(self.clusterCheckboxClicked, self));
                     
                     $(container).find('.gotoCurrentLocation').on('click', function() {
-                        self.map.locate({setView: true, maxZoom: 12});
+                        // 1. Stop any existing search first
+                        self.map.stopLocate(); 
+
+                        // 2. Try ONE time to find location
+                        self.map.locate({
+                            setView: true, 
+                            maxZoom: 12,
+                            watch: false,           // CRITICAL: Do not keep tracking (no retries)
+                            timeout: 60000,         // Wait up to 60 seconds for a lock (needed for desktops)
+                            enableHighAccuracy: true // Try to use GPS
+                        });
                     });
                     self.map.on('locationfound', function(e) {
                         if (self.userLocationMarker) { self.map.removeLayer(self.userLocationMarker); }
