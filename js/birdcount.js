@@ -104,43 +104,45 @@ const BirdCount = (function () {
         },
 
         drawMap: function (sheetData) {
-            // 1. Calculate the bounds of the specific district data (for initial centering)
+            // 1. Calculate Data Bounds
             this.dataBounds = this._calculateBounds(sheetData['coordinates']);
             
-            // 2. Define the Country-Level Hard Limits
+            // 2. Define Hard Limits (India)
             const restrictedBounds = [[5.0, 65.0], [33.0, 100.0]];
 
             if (!this.map) {
-                // --- Initialize Layers with 'bounds' option ---
-                // This ensures tiles DO NOT load outside the country box
+                // --- Initialize Layers with Strict Cropping ---
                 
                 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     maxZoom: 19,
                     attribution: '© OpenStreetMap',
-                    bounds: restrictedBounds // Crop tiles
+                    bounds: restrictedBounds,
+                    noWrap: true // <--- NEW: Prevents world from repeating
                 });
 
                 const satelliteBase = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
                     attribution: 'Tiles &copy; Esri',
-                    bounds: restrictedBounds // Crop tiles
+                    bounds: restrictedBounds,
+                    noWrap: true // <--- NEW
                 });
                 
                 const satelliteLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-                    bounds: restrictedBounds // Crop tiles
+                    bounds: restrictedBounds,
+                    noWrap: true // <--- NEW
                 });
                 
                 const satelliteHybrid = L.layerGroup([satelliteBase, satelliteLabels]);
 
-                // --- Initialize Map with ALL your requested features ---
+                // --- Initialize Map ---
                 this.map = L.map(this.options.mapContainerId, {
                     layers: [osm],
                     zoomControl: true,
-                    fullscreenControl: true,     // Adds the fullscreen button
-                    maxBounds: restrictedBounds, // Hard limit to India area
-                    maxBoundsViscosity: 1.0,     // Solid wall (no bouncing at edge)
-                    minZoom: 8,                  // As requested (User cannot zoom out too far)
-                    inertia: false,              // Stops momentum panning
-                    bounceAtZoomLimits: false    // Stops bouncing when zooming
+                    fullscreenControl: true,
+                    maxBounds: restrictedBounds, // The Cage
+                    maxBoundsViscosity: 1.0,     // Solid Walls
+                    inertia: false,              // No sliding
+                    bounceAtZoomLimits: false,   // No bouncing when zooming out
+                    minZoom: 4                   // Temporary safety default
                 });
 
                 const baseMaps = {
@@ -149,9 +151,16 @@ const BirdCount = (function () {
                 };
                 L.control.layers(baseMaps).addTo(this.map);
                 this._addCustomControls();
+
+                // --- *** THE MOBILE FIX *** ---
+                // Calculate exactly what zoom level fits the India box on THIS specific screen.
+                // This prevents the user from ever zooming out far enough to see white space.
+                const perfectFitZoom = this.map.getBoundsZoom(restrictedBounds);
+                this.map.setMinZoom(perfectFitZoom);
+                this.map.fitBounds(restrictedBounds); 
             }
             
-            // 3. Move the camera to the specific district data
+            // 3. Zoom to District Data
             if (this.dataBounds) {
                 this.map.fitBounds(this.dataBounds);
             }
