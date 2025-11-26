@@ -104,33 +104,50 @@ const BirdCount = (function () {
         },
 
         drawMap: function (sheetData) {
-            // 1. Calculate bounds for initial zoom
-            const dataBounds = this._calculateBounds(sheetData['coordinates']);
+            // 1. Get the bounds object (now guaranteed to be L.latLngBounds)
+            this.dataBounds = this._calculateBounds(sheetData['coordinates']);
             
+            // 2. Create the "Cage"
+            // If data exists, pad it by 25%. If not, fallback to India.
+            const indiaBounds = L.latLngBounds([[5.0, 65.0], [33.0, 100.0]]);
+            const cage = (this.dataBounds && this.dataBounds.isValid()) 
+                         ? this.dataBounds.pad(0.25) 
+                         : indiaBounds;
+
             if (!this.map) {
                 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     maxZoom: 19,
-                    attribution: '© OpenStreetMap'
+                    attribution: '© OpenStreetMap',
+                    noWrap: true
                 });
 
                 const satelliteBase = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                    attribution: 'Tiles &copy; Esri'
+                    attribution: 'Tiles &copy; Esri',
+                    noWrap: true
                 });
                 
-                const satelliteLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}');
+                const satelliteLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+                    noWrap: true
+                });
+                
                 const satelliteHybrid = L.layerGroup([satelliteBase, satelliteLabels]);
 
-                // --- DEFINE THE HARD LIMITS HERE ---
-                    const restrictedBounds = [[5.0, 65.0], [33.0, 100.0]];
-
+                // Initialize Map DIRECTLY into the Cage
                 this.map = L.map(this.options.mapContainerId, {
                     layers: [osm],
                     zoomControl: true,
                     fullscreenControl: true,
-                    maxBounds: restrictedBounds,
-                    maxBoundsViscosity: 5.0, // Makes the edge solid (no bouncing)
-                    minZoom: 8 // (Decrease if more zoom out rquired)
+                    maxBounds: cage,         // Hard Lock
+                    maxBoundsViscosity: 1.0, // Solid Wall
+                    minZoom: 1,              // Temporary
+                    inertia: false,
+                    bounceAtZoomLimits: false,
+                    zoomSnap: 1,
+                    zoomDelta: 0.5
                 });
+
+                // Snap camera instantly
+                this.map.fitBounds(cage);
 
                 const baseMaps = {
                     "Streets": osm,
@@ -138,10 +155,22 @@ const BirdCount = (function () {
                 };
                 L.control.layers(baseMaps).addTo(this.map);
                 this._addCustomControls();
+
+                // Set the floor so they can't zoom out past the cage
+                try {
+                    const strictMinZoom = this.map.getBoundsZoom(cage);
+                    this.map.setMinZoom(strictMinZoom);
+                } catch (e) { console.log(e); }
             }
             
-            if (dataBounds) {
-                this.map.fitBounds(dataBounds);
+            // Update if map already exists
+            if (this.map && this.dataBounds && this.dataBounds.isValid()) {
+                this.map.setMaxBounds(cage);
+                this.map.fitBounds(cage);
+                try {
+                    const strictMinZoom = this.map.getBoundsZoom(cage);
+                    this.map.setMinZoom(strictMinZoom);
+                } catch (e) {}
             }
 
             this.processCoordinates(sheetData['coordinates']);
@@ -423,18 +452,32 @@ const BirdCount = (function () {
                     $(container).find('.districtCenter').on('click', function() { self.recenter(); });
                     $(container).find('.clusterChkBox').on('click', _.bind(self.clusterCheckboxClicked, self));
                     
+                    // --- IMPROVED LOCATION LOGIC ---
                     $(container).find('.gotoCurrentLocation').on('click', function() {
-                        self.map.locate({setView: true, maxZoom: 12});
+                        self.map.stopLocate(); // Stop any previous attempts
+                        self.map.locate({
+                            setView: true, 
+                            maxZoom: 12,
+                            watch: false,
+                            timeout: 120000,         // Wait 2 minutes (fixes slow WiFi)
+                            enableHighAccuracy: true // Try to use GPS
+                        });
                     });
+
                     self.map.on('locationfound', function(e) {
                         if (self.userLocationMarker) { self.map.removeLayer(self.userLocationMarker); }
                         self.userLocationMarker = L.circleMarker(e.latlng, {
                             radius: 8, fillColor: "#3388ff", color: "#fff", weight: 2, fillOpacity: 1
                         }).addTo(self.map).bindPopup("You are here").openPopup();
                     });
+
+                    // Friendlier Error Handling
                     self.map.on('locationerror', function(e) {
-                        alert("Could not find your location: " + e.message);
+                        console.warn("Location failed:", e.message);
+                        alert("Could not find your location. Please ensure Location Services are allowed for this site.");
                     });
+                    // -------------------------------
+
                     return container;
                 }
             });
@@ -456,16 +499,19 @@ const BirdCount = (function () {
                 const lng1 = parseFloat(row[1]);
                 const lat2 = parseFloat(row[6]);
                 const lng2 = parseFloat(row[5]);
+                
+                // Logic to find extremes
                 if (lat1 < minLat) minLat = lat1;
                 if (lat1 > maxLat) maxLat = lat1;
-                if (lat2 < minLat) minLat = lat2; 
+                if (lat2 < minLat) minLat = lat2;
                 if (lat2 > maxLat) maxLat = lat2;
                 if (lng1 < minLng) minLng = lng1;
                 if (lng1 > maxLng) maxLng = lng1;
                 if (lng2 < minLng) minLng = lng2;
                 if (lng2 > maxLng) maxLng = lng2;
             });
-            return [[minLat, minLng], [maxLat, maxLng]];
+            // RETURN A PROPER LEAFLET OBJECT
+            return L.latLngBounds([[minLat, minLng], [maxLat, maxLng]]);
         },
 
         recenter: function () {
