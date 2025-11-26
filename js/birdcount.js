@@ -104,32 +104,44 @@ const BirdCount = (function () {
         },
 
         drawMap: function (sheetData) {
-            // 1. Calculate bounds for initial zoom
-            const dataBounds = this._calculateBounds(sheetData['coordinates']);
+            // 1. Calculate Data Bounds
+            this.dataBounds = this._calculateBounds(sheetData['coordinates']);
             
+            // 2. Define India Bounds
+            const restrictedBounds = [[5.0, 65.0], [33.0, 100.0]];
+
             if (!this.map) {
                 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     maxZoom: 19,
-                    attribution: '© OpenStreetMap'
+                    attribution: '© OpenStreetMap',
+                    bounds: restrictedBounds,
+                    noWrap: true
                 });
 
                 const satelliteBase = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                    attribution: 'Tiles &copy; Esri'
+                    attribution: 'Tiles &copy; Esri',
+                    bounds: restrictedBounds,
+                    noWrap: true
                 });
                 
-                const satelliteLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}');
+                const satelliteLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+                    bounds: restrictedBounds,
+                    noWrap: true
+                });
+                
                 const satelliteHybrid = L.layerGroup([satelliteBase, satelliteLabels]);
-
-                // --- DEFINE THE HARD LIMITS HERE ---
-                    const restrictedBounds = [[5.0, 65.0], [33.0, 100.0]];
 
                 this.map = L.map(this.options.mapContainerId, {
                     layers: [osm],
                     zoomControl: true,
                     fullscreenControl: true,
                     maxBounds: restrictedBounds,
-                    maxBoundsViscosity: 5.0, // Makes the edge solid (no bouncing)
-                    minZoom: 8 // (Decrease if more zoom out rquired)
+                    maxBoundsViscosity: 1.0, // Hard Wall
+                    minZoom: 1,              // Temp
+                    inertia: false,
+                    bounceAtZoomLimits: false,
+                    zoomSnap: 0,             // Crucial for perfect fit
+                    zoomDelta: 0.5
                 });
 
                 const baseMaps = {
@@ -138,10 +150,30 @@ const BirdCount = (function () {
                 };
                 L.control.layers(baseMaps).addTo(this.map);
                 this._addCustomControls();
+
+                // --- MOBILE ASPECT RATIO FIX ---
+                
+                // 1. Ask Leaflet: "What zoom fits the WHOLE country?"
+                let targetZoom = this.map.getBoundsZoom(restrictedBounds);
+
+                // 2. Check if we are on a tall screen (Mobile Portrait)
+                const isPortrait = window.innerHeight > window.innerWidth;
+
+                if (isPortrait) {
+                    // If on mobile, the 'fit' zoom is too small (causes grey bars).
+                    // We increase the zoom slightly so it fills the HEIGHT.
+                    // 0.5 to 1.0 is usually the magic number to fill the screen.
+                    targetZoom += 0.8; 
+                }
+
+                // 3. Apply the calculated zoom as the hard floor
+                this.map.setMinZoom(targetZoom);
+                this.map.setView([20.5937, 78.9629], targetZoom); // Center on India
             }
             
-            if (dataBounds) {
-                this.map.fitBounds(dataBounds);
+            // 3. Zoom to District (if available)
+            if (this.dataBounds) {
+                this.map.fitBounds(this.dataBounds);
             }
 
             this.processCoordinates(sheetData['coordinates']);
