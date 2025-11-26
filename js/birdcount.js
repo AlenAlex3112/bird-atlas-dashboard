@@ -129,7 +129,7 @@ const BirdCount = (function () {
                     fullscreenControl: true,
                     maxBounds: restrictedBounds,
                     maxBoundsViscosity: 1.0, // Makes the edge solid (no bouncing)
-                    minZoom: 8, // (Decrease if more zoom out rquired)
+                    minZoom: 15, // (Decrease if more zoom out rquired)
                     inertia: false,           // Stops momentum panning (no sliding after let go)
                     bounceAtZoomLimits: false
                 });
