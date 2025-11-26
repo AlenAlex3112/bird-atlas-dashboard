@@ -214,3 +214,8 @@ html, body, .map-parent, .map-parent>div, .map-container  {
     font-weight: normal !important; /* Keeps it readable */
     margin-bottom: 3px; /* Adds a little space between options */
 }
+
+html, body {
+    overscroll-behavior: none;
+    overflow: hidden; /* Ensures no scrollbars appear */
+}
