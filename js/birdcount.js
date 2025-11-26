@@ -104,46 +104,45 @@ const BirdCount = (function () {
         },
 
         drawMap: function (sheetData) {
-            const bounds = this._calculateBounds(sheetData['coordinates']);
+            // 1. Calculate bounds for initial zoom
+            const dataBounds = this._calculateBounds(sheetData['coordinates']);
             
             if (!this.map) {
-                // 1. Define the Base Layers
-                
-                // A. OpenStreetMap (Standard)
                 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     maxZoom: 19,
                     attribution: '© OpenStreetMap'
                 });
 
-                // B. Satellite (Base Image)
                 const satelliteBase = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
                     attribution: 'Tiles &copy; Esri'
                 });
-
-                // C. Labels (Transparent Overlay)
+                
                 const satelliteLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}');
-
-                // D. Combine Base + Labels into one "Hybrid" Group
                 const satelliteHybrid = L.layerGroup([satelliteBase, satelliteLabels]);
 
-               // 2. Initialize Map with default layer (OSM) and Controls
+                // --- DEFINE THE HARD LIMITS HERE ---
+                    const restrictedBounds = [[5.0, 65.0], [33.0, 100.0]];
+
                 this.map = L.map(this.options.mapContainerId, {
                     layers: [osm],
-                    zoomControl: true,      // Default is true, but good to be explicit
-                    fullscreenControl: true // *** NEW: Adds the fullscreen button ***
+                    zoomControl: true,
+                    fullscreenControl: true,
+                    maxBounds: restrictedBounds,
+                    maxBoundsViscosity: 5.0, // Makes the edge solid (no bouncing)
+                    minZoom: 8 // (Decrease if more zoom out rquired)
                 });
 
-                // 3. Add the Layer Control (The Toggle)
                 const baseMaps = {
-                    "Street Map-OSM": osm,
-                    "Satellite Hybrid-Esri": satelliteHybrid
+                    "Streets": osm,
+                    "Satellite Hybrid": satelliteHybrid
                 };
                 L.control.layers(baseMaps).addTo(this.map);
-
                 this._addCustomControls();
             }
             
-            if (bounds) this.map.fitBounds(bounds);
+            if (dataBounds) {
+                this.map.fitBounds(dataBounds);
+            }
 
             this.processCoordinates(sheetData['coordinates']);
             this.processStatusData(sheetData['status']);
@@ -155,7 +154,7 @@ const BirdCount = (function () {
                 const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(this.options.boundaryLink);
                 const customLayer = L.geoJson(null, {
                     style: function() { return { color: 'red', weight: 3, fillOpacity: 0 }; },
-                    interactive: false // <--- ADD THIS LINE. It lets clicks pass through the red line!
+                    interactive: false 
                 });
                 omnivore.kml(proxyUrl, null, customLayer).addTo(this.map);
             }
