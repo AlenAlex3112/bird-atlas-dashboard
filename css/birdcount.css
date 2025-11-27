@@ -214,3 +214,19 @@ html, body, .map-parent, .map-parent>div, .map-container  {
     font-weight: normal !important; /* Keeps it readable */
     margin-bottom: 3px; /* Adds a little space between options */
 }
+
+html, body {
+    overscroll-behavior: none;
+    overflow: hidden; /* Ensures no scrollbars appear */
+}
+
+#map-canvas {
+    touch-action: none; /* Critical for mobile feels */
+    background: #aad3df; /* Matches OpenStreetMap water color */
+}
+
+/* 2. Ensure the map container is rigid */
+.leaflet-container {
+    outline: 0;
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
+}
