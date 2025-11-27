@@ -104,82 +104,32 @@ const BirdCount = (function () {
         },
 
         drawMap: function (sheetData) {
-<<<<<<< HEAD
-            // 1. Calculate Data Bounds
-            this.dataBounds = this._calculateBounds(sheetData['coordinates']);
+            // 1. Calculate bounds for initial zoom
+            const dataBounds = this._calculateBounds(sheetData['coordinates']);
             
-            // 2. Define India Bounds
-=======
-            this.dataBounds = this._calculateBounds(sheetData['coordinates']);
-            
-            // 1. Define the Strict Cage (India)
->>>>>>> 8db3c779de02ded42ccd386fc22958b175bed452
-            const restrictedBounds = [[5.0, 65.0], [33.0, 100.0]];
-
             if (!this.map) {
-                // --- Initialize Layers with Strict Cropping ---
-                // We apply 'bounds' to ALL layers so nothing leaks out.
-                
                 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     maxZoom: 19,
-                    attribution: '© OpenStreetMap',
-<<<<<<< HEAD
-                    bounds: restrictedBounds,
-=======
-                    bounds: restrictedBounds, // <--- CROP
->>>>>>> 8db3c779de02ded42ccd386fc22958b175bed452
-                    noWrap: true
+                    attribution: '© OpenStreetMap'
                 });
 
                 const satelliteBase = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                    attribution: 'Tiles &copy; Esri',
-<<<<<<< HEAD
-                    bounds: restrictedBounds,
-=======
-                    bounds: restrictedBounds, // <--- CROP
->>>>>>> 8db3c779de02ded42ccd386fc22958b175bed452
-                    noWrap: true
+                    attribution: 'Tiles &copy; Esri'
                 });
                 
-                const satelliteLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-<<<<<<< HEAD
-                    bounds: restrictedBounds,
-=======
-                    bounds: restrictedBounds, // <--- CROP (Critical for labels)
->>>>>>> 8db3c779de02ded42ccd386fc22958b175bed452
-                    noWrap: true
-                });
-                
+                const satelliteLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}');
                 const satelliteHybrid = L.layerGroup([satelliteBase, satelliteLabels]);
 
-<<<<<<< HEAD
-=======
-                // --- Initialize Map ---
->>>>>>> 8db3c779de02ded42ccd386fc22958b175bed452
+                // --- DEFINE THE HARD LIMITS HERE ---
+                    const restrictedBounds = [[5.0, 65.0], [33.0, 100.0]];
+
                 this.map = L.map(this.options.mapContainerId, {
                     layers: [osm],
                     zoomControl: true,
                     fullscreenControl: true,
-                    
-                    // 2. Lock the User Movement
                     maxBounds: restrictedBounds,
-<<<<<<< HEAD
-                    maxBoundsViscosity: 1.0, // Hard Wall
-                    minZoom: 1,              // Temp
-                    inertia: false,
-                    bounceAtZoomLimits: false,
-                    zoomSnap: 0,             // Crucial for perfect fit
-                    zoomDelta: 0.5
-=======
-                    maxBoundsViscosity: 1.0,   // Hard Wall
-                    
-                    // 3. Mobile & Zoom Optimizations
-                    zoomSnap: 0,               // Allow exact zoom levels (e.g. 4.35)
-                    zoomDelta: 0.5,            // Smoother zooming
-                    inertia: false,            // Stop sliding
-                    bounceAtZoomLimits: false, // Stop bouncing
-                    minZoom: 1                 // Temporary
->>>>>>> 8db3c779de02ded42ccd386fc22958b175bed452
+                    maxBoundsViscosity: 5.0, // Makes the edge solid (no bouncing)
+                    minZoom: 8 // (Decrease if more zoom out rquired)
                 });
 
                 const baseMaps = {
@@ -188,43 +138,10 @@ const BirdCount = (function () {
                 };
                 L.control.layers(baseMaps).addTo(this.map);
                 this._addCustomControls();
-
-<<<<<<< HEAD
-                // --- MOBILE ASPECT RATIO FIX ---
-                
-                // 1. Ask Leaflet: "What zoom fits the WHOLE country?"
-                let targetZoom = this.map.getBoundsZoom(restrictedBounds);
-
-                // 2. Check if we are on a tall screen (Mobile Portrait)
-                const isPortrait = window.innerHeight > window.innerWidth;
-
-                if (isPortrait) {
-                    // If on mobile, the 'fit' zoom is too small (causes grey bars).
-                    // We increase the zoom slightly so it fills the HEIGHT.
-                    // 0.5 to 1.0 is usually the magic number to fill the screen.
-                    targetZoom += 0.8; 
-                }
-
-                // 3. Apply the calculated zoom as the hard floor
-                this.map.setMinZoom(targetZoom);
-                this.map.setView([20.5937, 78.9629], targetZoom); // Center on India
             }
             
-            // 3. Zoom to District (if available)
-=======
-                // 4. Calculate the "Floor"
-                // Force map to fit the box exactly right now
-                this.map.fitBounds(restrictedBounds);
-                
-                // Lock the door so they can't zoom out further than this exact view
-                const exactFitZoom = this.map.getBoundsZoom(restrictedBounds);
-                this.map.setMinZoom(exactFitZoom);
-            }
-            
-            // 5. Zoom to District Data (if available)
->>>>>>> 8db3c779de02ded42ccd386fc22958b175bed452
-            if (this.dataBounds) {
-                this.map.fitBounds(this.dataBounds);
+            if (dataBounds) {
+                this.map.fitBounds(dataBounds);
             }
 
             this.processCoordinates(sheetData['coordinates']);
@@ -507,17 +424,7 @@ const BirdCount = (function () {
                     $(container).find('.clusterChkBox').on('click', _.bind(self.clusterCheckboxClicked, self));
                     
                     $(container).find('.gotoCurrentLocation').on('click', function() {
-                        // 1. Stop any existing search first
-                        self.map.stopLocate(); 
-
-                        // 2. Try ONE time to find location
-                        self.map.locate({
-                            setView: true, 
-                            maxZoom: 12,
-                            watch: false,           // CRITICAL: Do not keep tracking (no retries)
-                            timeout: 60000,         // Wait up to 60 seconds for a lock (needed for desktops)
-                            enableHighAccuracy: true // Try to use GPS
-                        });
+                        self.map.locate({setView: true, maxZoom: 12});
                     });
                     self.map.on('locationfound', function(e) {
                         if (self.userLocationMarker) { self.map.removeLayer(self.userLocationMarker); }
