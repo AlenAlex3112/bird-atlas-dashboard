@@ -1,10 +1,8 @@
-// --- birdcount.js (Phase 7: All Features - Leaflet Native) ---
-
 const BirdCount = (function () {
     const $ = jQuery;
 
-    const infoBoxTemplate = _.template('<span><b><%=subCell%></b></span>' + // Changed to subCell
-        '<%if (clusterName && !_.isEmpty(clusterName.trim())){%><br/><b>Cluster</b>: <%=clusterName%><%}%>' + // Optional: Moved Cluster Name here
+    const infoBoxTemplate = _.template('<span><b><%=subCell%></b></span>' + 
+        '<%if (clusterName && !_.isEmpty(clusterName.trim())){%><br/><b>Cluster</b>: <%=clusterName%><%}%>' + 
         '<%if (site && !_.isEmpty(site.trim())){%><br/><b>Site</b>: <%=site%><%}%>' +
         '<%if (owner && !_.isEmpty(owner.trim())){%><br/><b>Owner</b>: <%=owner%><%}%>' +
         '<%if (!_.isEmpty(listUrl["1"])){%><br/><a target="_blank" href="<%=listUrl["1"]%>">List1</a><%}%>' +
@@ -104,11 +102,7 @@ const BirdCount = (function () {
         },
 
         drawMap: function (sheetData) {
-            // 1. Get the bounds object (now guaranteed to be L.latLngBounds)
             this.dataBounds = this._calculateBounds(sheetData['coordinates']);
-            
-            // 2. Create the "Cage"
-            // If data exists, pad it by 25%. If not, fallback to India.
             const indiaBounds = L.latLngBounds([[5.0, 65.0], [33.0, 100.0]]);
             const cage = (this.dataBounds && this.dataBounds.isValid()) 
                          ? this.dataBounds.pad(0.25) 
@@ -132,21 +126,19 @@ const BirdCount = (function () {
                 
                 const satelliteHybrid = L.layerGroup([satelliteBase, satelliteLabels]);
 
-                // Initialize Map DIRECTLY into the Cage
                 this.map = L.map(this.options.mapContainerId, {
                     layers: [osm],
                     zoomControl: true,
                     fullscreenControl: true,
-                    maxBounds: cage,         // Hard Lock
-                    maxBoundsViscosity: 1.0, // Solid Wall
-                    minZoom: 1,              // Temporary
+                    maxBounds: cage,         
+                    maxBoundsViscosity: 1.0, 
+                    minZoom: 1,              
                     inertia: false,
                     bounceAtZoomLimits: false,
                     zoomSnap: 1,
                     zoomDelta: 0.5
                 });
 
-                // Snap camera instantly
                 this.map.fitBounds(cage);
 
                 const baseMaps = {
@@ -156,15 +148,13 @@ const BirdCount = (function () {
                 L.control.layers(baseMaps).addTo(this.map);
                 this._addCustomControls();
 
-                // Set the floor so they can't zoom out past the cage
                 try {
                     const strictMinZoom = this.map.getBoundsZoom(cage);
                     this.map.setMinZoom(strictMinZoom);
                 } catch (e) { console.log(e); }
             }
             
-            // Update if map already exists
-            if (this.map && this.dataBounds && this.dataBounds.isValid()) {
+                if (this.map && this.dataBounds && this.dataBounds.isValid()) {
                 this.map.setMaxBounds(cage);
                 this.map.fitBounds(cage);
                 try {
@@ -207,7 +197,6 @@ const BirdCount = (function () {
             $('#' + this.options.mapContainerId).removeClass("spinner");
         },
 
-        // --- CLUSTER LOGIC (Turf.js) ---
         createClusterBoundaries: function () {
             const clusterLayers = [];
             const grouped = _.chain(this.rectangleInfos)
@@ -234,12 +223,8 @@ const BirdCount = (function () {
                if (hull) {
                     const layer = L.geoJSON(hull, {
                         style: { color: '#0000FF', weight: 2, fillColor: '#FF0000', fillOpacity: 0.2 },
-                        interactive: false // <--- ADD THIS LINE. This lets clicks pass through!
+                        interactive: false 
                     });
-                    
-                    // Note: Tooltips won't trigger on hover if interactive is false.
-                    // If you really need the cluster name, we can add a permanent label later.
-                    // layer.bindTooltip(clusterName, { permanent: false, direction: 'center' });
                     
                     clusterLayers.push(layer);
                 }
@@ -292,7 +277,7 @@ const BirdCount = (function () {
                     info.setValue('clusterName', row[1]);
                     info.setValue('owner', row[5]);
                     info.setValue('site', row[2]);
-                    // Use Leaflet bindPopup instead of Google InfoBox
+                   
                     layer.bindPopup(infoBoxTemplate(info.options));
                 }
             }, this);
@@ -397,12 +382,12 @@ const BirdCount = (function () {
                     const latlngs = layer.getLatLngs()[0]; 
                     let pathString = '';
                     latlngs.forEach(function(ll) {
-                        // Check if latlng is array (Turf output) or object (Leaflet output)
+                        
                         const lng = Array.isArray(ll) ? ll[1] : ll.lng;
                         const lat = Array.isArray(ll) ? ll[0] : ll.lat;
                         pathString += lng + "," + lat + ",0 ";
                     });
-                    // Close loop
+                    
                     const first = latlngs[0];
                     const fLng = Array.isArray(first) ? first[1] : first.lng;
                     const fLat = Array.isArray(first) ? first[0] : first.lat;
@@ -452,15 +437,14 @@ const BirdCount = (function () {
                     $(container).find('.districtCenter').on('click', function() { self.recenter(); });
                     $(container).find('.clusterChkBox').on('click', _.bind(self.clusterCheckboxClicked, self));
                     
-                    // --- IMPROVED LOCATION LOGIC ---
                     $(container).find('.gotoCurrentLocation').on('click', function() {
-                        self.map.stopLocate(); // Stop any previous attempts
+                        self.map.stopLocate(); 
                         self.map.locate({
                             setView: true, 
                             maxZoom: 12,
                             watch: false,
-                            timeout: 120000,         // Wait 2 minutes (fixes slow WiFi)
-                            enableHighAccuracy: true // Try to use GPS
+                            timeout: 120000,         
+                            enableHighAccuracy: true 
                         });
                     });
 
@@ -471,13 +455,12 @@ const BirdCount = (function () {
                         }).addTo(self.map).bindPopup("You are here").openPopup();
                     });
 
-                    // Friendlier Error Handling
+                   
                     self.map.on('locationerror', function(e) {
                         console.warn("Location failed:", e.message);
                         alert("Could not find your location. Please ensure Location Services are allowed for this site.");
                     });
-                    // -------------------------------
-
+                   
                     return container;
                 }
             });
@@ -500,7 +483,6 @@ const BirdCount = (function () {
                 const lat2 = parseFloat(row[6]);
                 const lng2 = parseFloat(row[5]);
                 
-                // Logic to find extremes
                 if (lat1 < minLat) minLat = lat1;
                 if (lat1 > maxLat) maxLat = lat1;
                 if (lat2 < minLat) minLat = lat2;
@@ -510,13 +492,12 @@ const BirdCount = (function () {
                 if (lng2 < minLng) minLng = lng2;
                 if (lng2 > maxLng) maxLng = lng2;
             });
-            // RETURN A PROPER LEAFLET OBJECT
-            return L.latLngBounds([[minLat, minLng], [maxLat, maxLng]]);
+           return L.latLngBounds([[minLat, minLng], [maxLat, maxLng]]);
         },
 
         recenter: function () {
             if (this.map && this.dataBounds) {
-                // FIX: Actually move the camera back to the data bounds
+               
                 this.map.fitBounds(this.dataBounds);
             }
         }
