@@ -10,7 +10,8 @@ const BirdCount = (function () {
         '<%if (!_.isEmpty(listUrl["3"])){%> <a target="_blank" href="<%=listUrl["3"]%>">List3</a><%}%>' +
         '<%if (!_.isEmpty(listUrl["4"])){%> <a target="_blank" href="<%=listUrl["4"]%>">List4</a><%}%>');
 
-    const kmlDescription = _.template('<%if (owner && !_.isEmpty(owner.trim())){%><b>Owner</b>: <%=owner%><%}%>' +
+    const kmlDescription = _.template('<%if (clusterName && !_.isEmpty(clusterName.trim())){%><b>Cluster</b>: <%=clusterName%><br/><%}%>' +
+        '<%if (owner && !_.isEmpty(owner.trim())){%><b>Owner</b>: <%=owner%><%}%>' +
         '<%if (!_.isEmpty(listUrl["1"])){%><br/><a target="_blank" href="<%=listUrl["1"]%>">List1</a><%}%>' +
         '<%if (!_.isEmpty(listUrl["2"])){%><br/><a target="_blank" href="<%=listUrl["2"]%>">List2</a><%}%>' +
         '<%if (!_.isEmpty(listUrl["3"])){%><br/><a target="_blank" href="<%=listUrl["3"]%>">List3</a><%}%>' +
@@ -109,41 +110,43 @@ const BirdCount = (function () {
                          : indiaBounds;
 
             if (!this.map) {
-                const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    maxZoom: 19,
-                    attribution: '© OpenStreetMap',
+                // --- GOOGLE MAPS TILE HACK ---
+                const googleRoadmap = L.tileLayer("https://mt1.google.com/vt/lyrs=m&hl=en&gl=in&x={x}&y={y}&z={z}", {
+                    maxZoom: 20,
+                    attribution: "© Google Maps",
                     noWrap: true
                 });
 
-                const satelliteBase = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                    attribution: 'Tiles &copy; Esri',
+                const googleSatellite = L.tileLayer("https://mt1.google.com/vt/lyrs=y&hl=en&gl=in&x={x}&y={y}&z={z}", {
+                    maxZoom: 20,
+                    attribution: "© Google Maps Satellite",
                     noWrap: true
                 });
-                
-                const satelliteLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-                    noWrap: true
-                });
-                
-                const satelliteHybrid = L.layerGroup([satelliteBase, satelliteLabels]);
 
+                // Initialize Map DIRECTLY into the Cage
                 this.map = L.map(this.options.mapContainerId, {
-                    layers: [osm],
+                    layers: [googleRoadmap], // Default to Google Roadmap
                     zoomControl: true,
                     fullscreenControl: true,
-                    maxBounds: cage,         
-                    maxBoundsViscosity: 1.0, 
-                    minZoom: 1,              
+                    
+                    maxBounds: cage, 
+                    maxBoundsViscosity: 1.0,
+                    
+                    minZoom: 1,
                     inertia: false,
                     bounceAtZoomLimits: false,
-                    zoomSnap: 1,
-                    zoomDelta: 0.5
+                    zoomSnap: 1,      
+                    zoomDelta: 1,     
+                    wheelPxPerZoomLevel: 60 
                 });
 
+                // Snap camera instantly
                 this.map.fitBounds(cage);
 
+                // Update the Layers Control Menu
                 const baseMaps = {
-                    "Streets": osm,
-                    "Satellite Hybrid": satelliteHybrid
+                    "Google Roadmap": googleRoadmap,
+                    "Google Satellite": googleSatellite
                 };
                 L.control.layers(baseMaps).addTo(this.map);
                 this._addCustomControls();
@@ -370,7 +373,8 @@ const BirdCount = (function () {
                 const options = {
                     pathString: this.polygonPathsFromBounds(rectangleInfo.options.bounds),
                     description: kmlDescription(rectangleInfo.options),
-                    name: rectangleInfo.options.subCell + (rectangleInfo.options.clusterName ? ' ' + rectangleInfo.options.clusterName : ''),
+                    // Strictly use the first column (subCell) for the label
+                    name: rectangleInfo.options.subCell, 
                     style: rectangleInfo.isReviewed() ? 'reviewed' : ('status-' + rectangleInfo.getValue('status')),
                     drawOrder: 2
                 };
