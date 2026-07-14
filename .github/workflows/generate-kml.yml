@@ -1,0 +1,49 @@
+name: Generate KML
+
+on:
+  schedule:
+    # Runs every day at 02:00 UTC. Adjust the cron as needed (https://crontab.guru).
+    - cron: '0 2 * * *'
+  workflow_dispatch: {}   # lets you run it manually from the Actions tab
+
+permissions:
+  contents: write          # needed to create/update the release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Generate KML
+        run: node generate-kml.js
+
+      # Publishes every .kml as an asset on a single, fixed-tag release.
+      # Same tag every run => the download URLs never change; assets are
+      # overwritten with the freshest files each time.
+      - name: Publish KML to fixed release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: kml-latest
+          name: Latest KML
+          body: "Auto-generated KML files. Regenerated on each workflow run."
+          files: kml/*.kml
+          make_latest: "true"
+
+      # Prints the permanent one-click download links into the run summary.
+      - name: Show download links
+        run: |
+          echo "### KML download links" >> "$GITHUB_STEP_SUMMARY"
+          for f in kml/*.kml; do
+            n=$(basename "$f")
+            echo "- https://github.com/${{ github.repository }}/releases/download/kml-latest/$n" >> "$GITHUB_STEP_SUMMARY"
+          done
