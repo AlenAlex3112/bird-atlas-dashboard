@@ -12,6 +12,9 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: js   # generate-kml.js and package.json live in the js/ folder
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,13 +33,14 @@ jobs:
       # Publishes every .kml as an asset on a single, fixed-tag release.
       # Same tag every run => the download URLs never change; assets are
       # overwritten with the freshest files each time.
+      # NOTE: files path is relative to the repo root, so it includes js/.
       - name: Publish KML to fixed release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: kml-latest
           name: Latest KML
           body: "Auto-generated KML files. Regenerated on each workflow run."
-          files: kml/*.kml
+          files: js/kml/*.kml
           make_latest: "true"
 
       # Prints the permanent one-click download links into the run summary.
