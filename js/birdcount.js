@@ -41,6 +41,10 @@ const BirdCount = (function () {
     const NS_KML = 'http://www.opengis.net/kml/2.2';
     const NS_GX = 'http://www.google.com/kml/ext/2.2';
 
+    // Handle used to detach the search-bar listeners from a previously shown
+    // map before we bind them to a newly shown one (prevents stacked handlers).
+    let searchCleanup = null;
+
     const RectangleInfo = function (options) {
         this.options = _.extend({
             subCell: null, bounds: null, clusterName: null, site: null, owner: null,
@@ -72,6 +76,19 @@ const BirdCount = (function () {
             mapContainerId: 'map-canvas', mapSpreadSheetId: null, name: 'visualization', boundaryLink: null
         }, options);
         if (!this.options.mapSpreadSheetId) throw "the option 'mapSpreadSheetId' is mandatory";
+
+        // Per-instance state. These previously lived on the prototype, so every
+        // map shared the same objects until each overwrote them - a data-leak risk
+        // between districts. Initialising them here keeps each map isolated.
+        this.map = null;
+        this.dataBounds = null;
+        this.rectangleInfos = {};
+        this.gridLayers = {};
+        this.clusterLayerGroup = null;
+        this.userLocationMarker = null;
+        this._plottedMarker = null;
+        this._pendingCoord = null;
+        this.showCluster = false;
     };
 
     BirdMap.prototype = {
@@ -169,6 +186,13 @@ const BirdCount = (function () {
             this.processCoordinates(sheetData['coordinates']);
             this.processStatusData(sheetData['status']);
             this.processPlanningData(sheetData['planning']);
+
+            // A ?coords= deep link may have arrived before the map existed - plot it now.
+            if (this._pendingCoord) {
+                const p = this._pendingCoord;
+                this._pendingCoord = null;
+                this.plotCoordinate(p.lat, p.lng);
+            }
         },
 
         processCoordinates: function (rows) {
@@ -237,6 +261,7 @@ const BirdCount = (function () {
 
         clusterCheckboxClicked: function (e) {
             const show = e.target.checked;
+            this.showCluster = show;
             if (show) {
                 if (!this.clusterLayerGroup) {
                     const layers = this.createClusterBoundaries();
@@ -352,107 +377,113 @@ const BirdCount = (function () {
             documentNode.appendChild(placemarkNode);
         },
 
-        initCellSearch: function() {
-    const searchInput = document.getElementById('cell-search-input');
-    const searchResults = document.getElementById('cell-search-results');
+        // Public: drop/replace the "plotted location" marker and fly to it.
+        // If the Leaflet map does not exist yet (sheet still loading), the point
+        // is queued and plotted from drawMap() once the map is ready.
+        plotCoordinate: function (lat, lng) {
+            lat = parseFloat(lat); lng = parseFloat(lng);
+            if (isNaN(lat) || isNaN(lng)) return false;
+            if (!this.map) { this._pendingCoord = { lat: lat, lng: lng }; return true; }
+            if (this._plottedMarker) this.map.removeLayer(this._plottedMarker);
+            this._plottedMarker = L.marker([lat, lng]).addTo(this.map);
+            this._plottedMarker
+                .bindPopup('<b>Plotted Location</b><br>' + lat.toFixed(5) + ', ' + lng.toFixed(5))
+                .openPopup();
+            this.map.flyTo([lat, lng], 14, { duration: 1.5 });
+            return true;
+        },
 
-    if (!searchInput || !searchResults) return;
+        // Public: accept the raw "lat,lng" string used by the ?coords= deep link
+        // (and by the coordinate search box). Returns false if unparseable.
+        plotFromString: function (str) {
+            const coords = this._parseCoordinates(str);
+            if (!coords || isNaN(coords.lat) || isNaN(coords.lng)) return false;
+            return this.plotCoordinate(coords.lat, coords.lng);
+        },
 
-    // Listen for user typing
-    searchInput.addEventListener('input', (e) => {
-        const query = e.target.value.toLowerCase().trim();
-        searchResults.innerHTML = ''; // Clear previous results
-        
-        if (!query) {
-            searchResults.style.display = 'none';
-            return;
-        }
+        // Wire the two floating search bars to THIS map. Called from recenter(),
+        // so whichever district is currently on screen owns the shared inputs.
+        bindSearchControls: function () {
+            const self = this;
+            const coordInput  = document.getElementById('coord-search-input');
+            const coordBtn    = document.getElementById('coord-search-btn');
+            const cellInput   = document.getElementById('cell-search-input');
+            const cellResults = document.getElementById('cell-search-results');
+            if (!coordInput || !coordBtn || !cellInput || !cellResults) return;
 
-        // Filter the rectangleInfos using Underscore.js (since your app uses it)
-        const matches = _(this.rectangleInfos).filter((info) => {
-            const subCell = (info.options.subCell || '').toLowerCase();
-            const site = (info.options.site || '').toLowerCase();
-            return subCell.includes(query) || site.includes(query);
-        });
+            // Detach the previously active map's listeners before attaching ours.
+            if (searchCleanup) { searchCleanup(); searchCleanup = null; }
 
-        // Populate dropdown if matches are found
-        if (matches.length > 0) {
-            searchResults.style.display = 'block';
-            
-            // Limit to top 10 results for performance
-            _(matches).first(10).forEach((info) => {
-                const li = document.createElement('li');
-                
-                // Format the name nicely: "Grid ID, Site Name"
-                const siteName = info.options.site;
-                const displayName = info.options.subCell + (siteName && siteName.trim() !== '' ? ', ' + siteName : '');
-                
-                li.textContent = displayName;
-                
-                // When a suggestion is clicked
-                li.addEventListener('click', () => {
-                    // 1. Fill the input with the clicked name
-                    searchInput.value = displayName;
-                    // 2. Hide the dropdown
-                    searchResults.style.display = 'none';
-                    // 3. Zoom Leaflet map to the grid's boundaries
-                    if (this.map && info.options.bounds) {
-                        this.map.fitBounds(info.options.bounds, { padding: [50, 50], maxZoom: 14 });
-                    }
+            // --- Coordinate plot (delegates to the shared plotCoordinate) ---
+            const plotFromInput = function () {
+                const query = coordInput.value.trim();
+                if (!query) return;
+                const coords = self._parseCoordinates(query);
+                if (!coords || isNaN(coords.lat) || isNaN(coords.lng)) {
+                    alert("Invalid coordinate format. Please use Decimal (e.g., 8.58, 77.26) or Degrees (e.g., 8° 35' 0\" N, 77° 15' 37\" E).");
+                    return;
+                }
+                self.plotCoordinate(coords.lat, coords.lng);
+            };
+            const onCoordKey = function (e) { if (e.key === 'Enter') plotFromInput(); };
+
+            // --- Cell / site search ---
+            const onCellInput = function () {
+                const query = cellInput.value.toLowerCase().trim();
+                cellResults.innerHTML = '';
+                if (!query) { cellResults.style.display = 'none'; return; }
+
+                const matches = _(self.rectangleInfos).filter(function (info) {
+                    const subCell = (info.options.subCell || '').toLowerCase();
+                    const site = (info.options.site || '').toLowerCase();
+                    return subCell.indexOf(query) >= 0 || site.indexOf(query) >= 0;
                 });
-                
-                searchResults.appendChild(li);
-            });
-        } else {
-            searchResults.style.display = 'none';
-        }
-    });
 
-    // Hide dropdown if user clicks outside of it
-    document.addEventListener('click', (e) => {
-        if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
-            searchResults.style.display = 'none';
-        }
-    });
-},
+                if (!matches.length) { cellResults.style.display = 'none'; return; }
 
-initCoordinateSearch: function() {
-    const searchInput = document.getElementById('coord-search-input');
-    const searchBtn = document.getElementById('coord-search-btn');
-    let currentMarker = null; // Store marker to remove it on new searches
+                cellResults.style.display = 'block';
+                _(matches).first(10).forEach(function (info) {
+                    const siteName = info.options.site;
+                    const displayName = info.options.subCell +
+                        (siteName && siteName.trim() !== '' ? ', ' + siteName : '');
+                    const li = document.createElement('li');
+                    li.textContent = displayName;
+                    li.addEventListener('click', function () {
+                        cellInput.value = displayName;
+                        cellResults.style.display = 'none';
+                        if (self.map && info.options.bounds) {
+                            self.map.fitBounds(info.options.bounds, { padding: [50, 50], maxZoom: 14 });
+                        }
+                    });
+                    cellResults.appendChild(li);
+                });
+            };
 
-    if (!searchInput || !searchBtn) return;
+            // --- Hide the dropdown when clicking elsewhere ---
+            const onDocClick = function (e) {
+                if (!cellInput.contains(e.target) && !cellResults.contains(e.target)) {
+                    cellResults.style.display = 'none';
+                }
+            };
 
-    searchBtn.addEventListener('click', () => {
-        const query = searchInput.value.trim();
-        if (!query) return;
+            coordBtn.addEventListener('click', plotFromInput);
+            coordInput.addEventListener('keydown', onCoordKey);
+            cellInput.addEventListener('input', onCellInput);
+            document.addEventListener('click', onDocClick);
 
-        const coords = this._parseCoordinates(query);
+            // Start each newly shown map with a closed, empty dropdown.
+            cellResults.style.display = 'none';
+            cellResults.innerHTML = '';
 
-        if (!coords || isNaN(coords.lat) || isNaN(coords.lng)) {
-            alert("Invalid coordinate format. Please use Decimal (e.g., 8.58, 77.26) or Degrees (e.g., 8° 35' 0\" N, 77° 15' 37\" E).");
-            return;
-        }
+            searchCleanup = function () {
+                coordBtn.removeEventListener('click', plotFromInput);
+                coordInput.removeEventListener('keydown', onCoordKey);
+                cellInput.removeEventListener('input', onCellInput);
+                document.removeEventListener('click', onDocClick);
+            };
+        },
 
-        // Remove the previous marker if it exists
-        if (currentMarker && this.map) {
-            this.map.removeLayer(currentMarker);
-        }
-
-        if (this.map) {
-            // Plot the new marker
-            currentMarker = L.marker([coords.lat, coords.lng]).addTo(this.map);
-            
-            // Add a popup with the decimal values
-            currentMarker.bindPopup(`<b>Plotted Location</b><br>${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`).openPopup();
-            
-            // Pan and zoom the map smoothly to the plotted point
-            this.map.flyTo([coords.lat, coords.lng], 14, { duration: 1.5 });
-        }
-    });
-},
-
-_parseCoordinates: function(input) {
+        _parseCoordinates: function(input) {
     input = input.trim();
 
     // 1. Try matching standard Decimal Degrees (e.g., "8.5833, 77.2604" or "8.5833 77.2604")
@@ -645,6 +676,10 @@ _parseCoordinates: function(input) {
         },
 
         recenter: function () {
+            // Re-attach the search bars to this map every time it is shown
+            // (covers both freshly created maps and cached/re-visited ones).
+            this.bindSearchControls();
+
             if (this.map && this.dataBounds) {
                
                 this.map.fitBounds(this.dataBounds);

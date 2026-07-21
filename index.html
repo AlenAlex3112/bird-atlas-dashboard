@@ -67,23 +67,20 @@
 
 <div class="map-parent container-fluid" style="position: relative;">
     
-    <!-- NEW: Search Controls Panel floating over the map -->
-    <div id="map-search-controls" style="position: absolute; top: 15px; right: 15px; z-index: 1000; background: rgba(255, 255, 255, 0.9); padding: 10px; border-radius: 5px; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">
-        
-        <!-- Coordinate Search -->
-        <div id="coord-search-container" style="margin-bottom: 10px;">
-            <input type="text" id="coord-search-input" placeholder="Search lat, lng (e.g. 8.58, 77.26)" autocomplete="off" style="width: 220px; padding: 5px;">
-            <button id="coord-search-btn" style="padding: 5px 10px;">Plot</button>
+        <div id="map-search-controls">
+ 
+        <div id="coord-search-container" class="floating-search-bar">
+            <input type="text" id="coord-search-input" placeholder="Search lat, lng (e.g. 8.58, 77.26)" autocomplete="off">
+            <button id="coord-search-btn">Plot</button>
+        </div>
+ 
+        <div id="cell-search-container" class="floating-search-bar">
+            <input type="text" id="cell-search-input" placeholder="Search cell ID or site..." autocomplete="off">
+            <ul id="cell-search-results"></ul>
         </div>
 
-        <!-- Cell/Site Search -->
-        <div id="cell-search-container" style="position: relative;">
-            <input type="text" id="cell-search-input" placeholder="Search cell ID or site..." autocomplete="off" style="width: 220px; padding: 5px;">
-            <ul id="cell-search-results" style="position: absolute; top: 100%; left: 0; width: 100%; background: white; list-style: none; margin: 0; padding: 0; border: 1px solid #ccc; max-height: 200px; overflow-y: auto; display: none;"></ul>
-        </div>
 
     </div>
-    <!-- END Search Controls -->
 
     <div id="landing-message">
         <h1>Bird Atlas Dashboard</h1>
@@ -99,9 +96,7 @@
 
     <div class="tab-content" id="map-tab-content"></div>
 </div>
-<!-- Removed the stray </div> that was right here -->
 
-<!-- Modal remains the same -->
 <div class="modal fade page-alert-box" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-sm">
         <div class="modal-content">

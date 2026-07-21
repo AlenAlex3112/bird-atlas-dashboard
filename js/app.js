@@ -1,4 +1,3 @@
-
 /**
  * This function is called by app-starter.js.
  * @param {Array} rootData - The array of items from the master sheet.
@@ -113,6 +112,7 @@ function initializeRouter(rootData) {
             const map = maps[mapContainerId] ? maps[mapContainerId] : BirdCount.createMap(mapOptions);
             maps[mapContainerId] = map;
             map.recenter();
+            return map;
         }
 
         // --- THIS IS THE CORE RECURSIVE LOGIC ---
@@ -139,6 +139,9 @@ function initializeRouter(rootData) {
             if (this.params.p11) { parts.push(this.params.p11); path += '/' + this.params.p11; }
             if (this.params.p12) { parts.push(this.params.p12); path += '/' + this.params.p12; } // Up to 12 levels in the url are allowed at the moment 
             
+            // Deep-link support: ?coords=<lat>,<lng> (e.g. from the eBird plugin).
+            const coords = this.params.coords || null;
+
             if (path.length > 0) {
                 $backButton.show();
                 InfoManager.hideLandingMessage(); 
@@ -164,7 +167,10 @@ function initializeRouter(rootData) {
 
                 if (selectedItem.last_sheet === '1') {
                     const mapContainerId = 'map-' + path.replace(/[^a-z0-9]/g, '-');
-                    loadMap(selectedItem, mapContainerId); 
+                    const mapObj = loadMap(selectedItem, mapContainerId); 
+                    if (coords && mapObj && typeof mapObj.plotFromString === 'function') {
+                        mapObj.plotFromString(coords);
+                    }
                     populatePills(currentItems, currentPathPrefix, part); 
                     return; 
                 }
@@ -181,7 +187,8 @@ function initializeRouter(rootData) {
                 // Only redirect if a default exists AND we didn't get here via the back button
                 if (defaultItem && !isHandlingBackNavigation) {
                     const defaultItemKey = defaultItem.name.trim().toLowerCase();
-                    const newHash = currentPathPrefix + defaultItemKey;
+                    let newHash = currentPathPrefix + defaultItemKey;
+                    if (coords) newHash += '?coords=' + coords;   // carry the pin through the default hop
                     this.redirect(newHash);
                     return; 
                 }

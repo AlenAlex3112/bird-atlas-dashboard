@@ -37,38 +37,37 @@ html, body, .map-parent, .map-parent>div, .map-container  {
 }
 
 
-    /* Custom styles for the logo placement */
-    .navbar-header {
-        display: flex; /* Use flexbox for layout */
-        flex-direction: column; /* Stack children vertically */
-        align-items: flex-start; /* Align children to the left */
-        justify-content: center; /* Center vertically if needed */
-        padding-top: 10px; /* Add some padding at the top */
-        padding-bottom: 5px; /* Add some padding at the bottom */
-    }
+/* Custom styles for the logo placement */
+.navbar-header {
+    display: flex; /* Use flexbox for layout */
+    flex-direction: column; /* Stack children vertically */
+    align-items: flex-start; /* Align children to the left */
+    justify-content: center; /* Center vertically if needed */
+    padding-top: 10px; /* Add some padding at the top */
+    padding-bottom: 5px; /* Add some padding at the bottom */
+}
 
-    .navbar-header .navbar-brand {
-        line-height: normal; /* Reset line-height if needed */
-        height: auto; /* Allow height to adjust */
-        padding-top: 0;
-        padding-bottom: 0;
-        margin-right: 0; /* Remove extra margin if any */
-        margin-left: 15px; /* Match original left margin */
-    }
+.navbar-header .navbar-brand {
+    line-height: normal; /* Reset line-height if needed */
+    height: auto; /* Allow height to adjust */
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-right: 0; /* Remove extra margin if any */
+    margin-left: 15px; /* Match original left margin */
+}
 
-    .brand-logo-container {
-        margin-left: 20px; /* Align with the title text */
-        margin-top: 5px; /* Space between title and logo */
-        max-width: 125px; /* Max width to constrain the logo */
-        /* You might need to adjust this max-width to match your "Bird Atlas Dashboard" text width */
-    }
+.brand-logo-container {
+    margin-left: 20px; /* Align with the title text */
+    margin-top: 5px; /* Space between title and logo */
+    max-width: 125px; /* Max width to constrain the logo */
+}
 
-    .brand-logo {
-        width: 100%; /* Make the image take 100% of its container's width */
-        height: auto; /* Maintain aspect ratio */
-        display: block; /* Remove extra space below image */
-    }
-    
+.brand-logo {
+    width: 100%; /* Make the image take 100% of its container's width */
+    height: auto; /* Maintain aspect ratio */
+    display: block; /* Remove extra space below image */
+}
+
 #landing-message {
     position: absolute;
     top: 50%;
@@ -82,7 +81,7 @@ html, body, .map-parent, .map-parent>div, .map-container  {
 /* Main Heading Style */
 #landing-message h1 {
     font-weight: bold;
-    font-size: 3em; 
+    font-size: 3em;
     color: rgba(0, 0, 0, 0.4); /* Light Grey */
     margin-bottom: 20px;
 }
@@ -125,12 +124,12 @@ html, body, .map-parent, .map-parent>div, .map-container  {
     line-height: 1.6;           /* Adds breathing room between lines */
 }
 
-/* 2. Increase font size in the Menu/Legend */
+/* Increase font size in the Menu/Legend */
 .settings-dropdown li {
     font-size: 14px !important; /* Adjust as needed */
 }
 
-/* 3. Increase font size of the "View List" links inside popups */
+/* Increase font size of the "View List" links inside popups */
 .leaflet-popup-content a {
     font-size: 15px !important;
     font-weight: bold;
@@ -143,21 +142,7 @@ html, body, .map-parent, .map-parent>div, .map-container  {
     border: 1px solid #333; /* Optional: Makes the box pop more */
 }
 
-/* Force the container to lay out items in a row */
-.leaflet-top.leaflet-right {
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: flex-start !important;
-    pointer-events: none; /* Allows clicking map through empty space */
-}
-
-/* Add spacing between the side-by-side buttons */
-.leaflet-top.leaflet-right .leaflet-control {
-    margin-left: 10px !important; /* Adds gap between the two buttons */
-    margin-top: 10px !important;  /* Ensures spacing from the top edge */
-    pointer-events: auto;         /* Re-enables clicking on the buttons */
-}
-
+/* Lay out the top-right map controls in a row */
 .leaflet-top.leaflet-right {
     display: flex !important;
     flex-direction: row !important;
@@ -167,7 +152,7 @@ html, body, .map-parent, .map-parent>div, .map-container  {
     margin-right: 10px;
 }
 
-/* 2. Reset styles for ALL controls in this corner */
+/* Reset + style ALL controls in this corner */
 .leaflet-top.leaflet-right .leaflet-control {
     margin: 0 !important;
     margin-left: 10px !important; /* Add space between the buttons */
@@ -179,7 +164,7 @@ html, body, .map-parent, .map-parent>div, .map-container  {
     background-clip: padding-box;
 }
 
-/* 3. Specific Style for the Layers Toggle (The Map Icon) */
+/* Layers Toggle (the map icon) */
 .leaflet-control-layers {
     min-width: 50px;
     min-height: 50px;
@@ -191,7 +176,7 @@ html, body, .map-parent, .map-parent>div, .map-container  {
     background-size: 30px 30px !important;
 }
 
-/* 4. Specific Style for the Hamburger Menu (The Menu Icon) */
+/* Hamburger Menu (the menu icon) */
 .leaflet-bar.leaflet-control {
     width: 50px !important;
     height: 50px !important;
@@ -225,33 +210,74 @@ html, body {
     background: #aad3df; /* Matches OpenStreetMap water color */
 }
 
-/* 2. Ensure the map container is rigid */
 .leaflet-container {
     outline: 0;
     -webkit-tap-highlight-color: rgba(0,0,0,0);
 }
 
-#cell-search-input {
-    width: 100%;
-    padding: 8px;
-    box-sizing: border-box;
+/* ============================================================
+   Floating search bars (coordinate + cell/site)
+   ============================================================ */
+#map-search-controls {
+    position: absolute;
+    top: 12px;
+    right: 130px;             /* clears Leaflet's top-right layer + hamburger controls */
+    z-index: 1000;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
 }
+
+.floating-search-bar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 6px;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.35);
+    padding: 3px 4px;
+}
+
+.floating-search-bar input[type="text"] {
+    border: none;
+    outline: none;
+    background: transparent;
+    padding: 6px 8px;
+    font-size: 13px;
+}
+
+#coord-search-input { width: 210px; }
+#cell-search-input  { width: 190px; }
+
+.floating-search-bar button {
+    border: none;
+    background: #2b8cbe;
+    color: #fff;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.floating-search-bar button:hover { background: #227099; }
 
 #cell-search-results {
     position: absolute;
-    top: 100%;
+    top: calc(100% + 4px);
     left: 0;
     width: 100%;
-    background: white;
-    border: 1px solid #ccc;
-    border-top: none;
-    max-height: 200px;
-    overflow-y: auto;
+    background: #fff;
+    list-style: none;
     margin: 0;
     padding: 0;
-    list-style: none;
-    z-index: 1000; /* Ensures it stays above the map */
-    display: none; /* Hidden by default */
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    max-height: 200px;
+    overflow-y: auto;
+    display: none; /* Hidden by default; JS toggles to block */
+    z-index: 1001;
 }
 
 #cell-search-results li {
@@ -263,4 +289,15 @@ html, body {
 
 #cell-search-results li:hover {
     background-color: #f0f0f0;
+}
+
+/* Stack the bars on narrow screens so they don't overflow the map */
+@media (max-width: 767px) {
+    #map-search-controls {
+        right: 12px;
+        left: 12px;
+        justify-content: stretch;
+    }
+    .floating-search-bar { flex: 1 1 100%; }
+    #coord-search-input, #cell-search-input { width: 100%; flex: 1; }
 }
