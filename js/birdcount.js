@@ -420,7 +420,7 @@ const BirdCount = (function () {
                 if (!query) return;
                 const coords = self._parseCoordinates(query);
                 if (!coords || isNaN(coords.lat) || isNaN(coords.lng)) {
-                    alert("Invalid coordinate format. Please use Decimal (e.g., 8.58, 77.26) or Degrees (e.g., 8° 35' 0\" N, 77° 15' 37\" E).");
+                    alert("Couldn't read that. Use decimal (8.58, 77.26), DMS (8° 35' N, 77° 15' E), or paste a full Google Maps link. Note: shortened goo.gl / maps.app links won't work — open them first, then copy the full URL.");
                     return;
                 }
                 self.plotCoordinate(coords.lat, coords.lng);
@@ -485,6 +485,25 @@ const BirdCount = (function () {
 
         _parseCoordinates: function(input) {
     input = input.trim();
+
+    // 0. Try extracting coordinates from a pasted Google Maps link.
+    if (/https?:\/\/|google\.[a-z.]+\/maps|goo\.gl|maps\.app/i.test(input)) {
+        let url = input;
+        try { url = decodeURIComponent(input); } catch (e) { /* keep raw if % is malformed */ }
+
+        const urlPatterns = [
+            /[?&](?:q|query|ll|daddr|saddr)=(-?\d+(?:\.\d+)?)(?:,|%2C)\s*(-?\d+(?:\.\d+)?)/i, // ?query=LAT,LNG
+            /!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/,                                        // place pin: !3dLAT!4dLNG
+            /@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/                                             // map centre: @LAT,LNG
+        ];
+        for (let i = 0; i < urlPatterns.length; i++) {
+            const m = url.match(urlPatterns[i]);
+            if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+        }
+        // A Maps link we can't read (e.g. a shortened maps.app.goo.gl link, which only
+        // reveals its coordinates after a redirect we can't follow from the browser).
+        return null;
+    }
 
     // 1. Try matching standard Decimal Degrees (e.g., "8.5833, 77.2604" or "8.5833 77.2604")
     const ddRegex = /^(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)$/;
