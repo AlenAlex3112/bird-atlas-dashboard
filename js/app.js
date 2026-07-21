@@ -1,8 +1,12 @@
+
 /**
  * This function is called by app-starter.js.
  * @param {Array} rootData - The array of items from the master sheet.
  */
 function initializeRouter(rootData) {
+
+    // Make the deep-link coordinate resolver aware of the current sheet tree.
+    CoordResolver.init(rootData);
 
     // *** A flag to communicate between the back button and the router ***
     let isNavigatingBack = false;
@@ -149,7 +153,27 @@ function initializeRouter(rootData) {
                 $backButton.hide();
                 InfoManager.showLandingMessage();
             }
-            
+
+            // Deep link carrying only ?coords= and no path: resolve which atlas
+            // leaf actually contains the point, then redirect into it (coords
+            // preserved). If no grid contains it, fall through to the normal
+            // default-map behaviour below.
+            if (coords && parts.length === 0) {
+                CoordResolver.setBusy(true);
+                let resolvedPath = null;
+                const cparts = coords.split(',');
+                try {
+                    resolvedPath = await CoordResolver.resolve(parseFloat(cparts[0]), parseFloat(cparts[1]));
+                } catch (e) {
+                    console.warn('Coordinate resolve failed:', e);
+                }
+                CoordResolver.setBusy(false);
+                if (resolvedPath) {
+                    this.redirect('#/' + resolvedPath + '?coords=' + coords);
+                    return;
+                }
+            }
+
             let currentItems = rootData; 
             let currentPathPrefix = '#/';
             

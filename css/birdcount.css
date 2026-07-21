@@ -219,10 +219,10 @@ html, body {
    Floating search bars (coordinate + cell/site)
    ============================================================ */
 #map-search-controls {
-    height: auto;
     position: absolute;
     top: 12px;
     right: 130px;             /* clears Leaflet's top-right layer + hamburger controls */
+    height: auto;             /* override the `.map-parent>div { height:100% }` rule */
     z-index: 1000;
     display: flex;
     flex-wrap: wrap;
