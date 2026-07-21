@@ -352,6 +352,152 @@ const BirdCount = (function () {
             documentNode.appendChild(placemarkNode);
         },
 
+        initCellSearch: function() {
+    const searchInput = document.getElementById('cell-search-input');
+    const searchResults = document.getElementById('cell-search-results');
+
+    if (!searchInput || !searchResults) return;
+
+    // Listen for user typing
+    searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        searchResults.innerHTML = ''; // Clear previous results
+        
+        if (!query) {
+            searchResults.style.display = 'none';
+            return;
+        }
+
+        // Filter the rectangleInfos using Underscore.js (since your app uses it)
+        const matches = _(this.rectangleInfos).filter((info) => {
+            const subCell = (info.options.subCell || '').toLowerCase();
+            const site = (info.options.site || '').toLowerCase();
+            return subCell.includes(query) || site.includes(query);
+        });
+
+        // Populate dropdown if matches are found
+        if (matches.length > 0) {
+            searchResults.style.display = 'block';
+            
+            // Limit to top 10 results for performance
+            _(matches).first(10).forEach((info) => {
+                const li = document.createElement('li');
+                
+                // Format the name nicely: "Grid ID, Site Name"
+                const siteName = info.options.site;
+                const displayName = info.options.subCell + (siteName && siteName.trim() !== '' ? ', ' + siteName : '');
+                
+                li.textContent = displayName;
+                
+                // When a suggestion is clicked
+                li.addEventListener('click', () => {
+                    // 1. Fill the input with the clicked name
+                    searchInput.value = displayName;
+                    // 2. Hide the dropdown
+                    searchResults.style.display = 'none';
+                    // 3. Zoom Leaflet map to the grid's boundaries
+                    if (this.map && info.options.bounds) {
+                        this.map.fitBounds(info.options.bounds, { padding: [50, 50], maxZoom: 14 });
+                    }
+                });
+                
+                searchResults.appendChild(li);
+            });
+        } else {
+            searchResults.style.display = 'none';
+        }
+    });
+
+    // Hide dropdown if user clicks outside of it
+    document.addEventListener('click', (e) => {
+        if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+            searchResults.style.display = 'none';
+        }
+    });
+},
+
+initCoordinateSearch: function() {
+    const searchInput = document.getElementById('coord-search-input');
+    const searchBtn = document.getElementById('coord-search-btn');
+    let currentMarker = null; // Store marker to remove it on new searches
+
+    if (!searchInput || !searchBtn) return;
+
+    searchBtn.addEventListener('click', () => {
+        const query = searchInput.value.trim();
+        if (!query) return;
+
+        const coords = this._parseCoordinates(query);
+
+        if (!coords || isNaN(coords.lat) || isNaN(coords.lng)) {
+            alert("Invalid coordinate format. Please use Decimal (e.g., 8.58, 77.26) or Degrees (e.g., 8° 35' 0\" N, 77° 15' 37\" E).");
+            return;
+        }
+
+        // Remove the previous marker if it exists
+        if (currentMarker && this.map) {
+            this.map.removeLayer(currentMarker);
+        }
+
+        if (this.map) {
+            // Plot the new marker
+            currentMarker = L.marker([coords.lat, coords.lng]).addTo(this.map);
+            
+            // Add a popup with the decimal values
+            currentMarker.bindPopup(`<b>Plotted Location</b><br>${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`).openPopup();
+            
+            // Pan and zoom the map smoothly to the plotted point
+            this.map.flyTo([coords.lat, coords.lng], 14, { duration: 1.5 });
+        }
+    });
+},
+
+_parseCoordinates: function(input) {
+    input = input.trim();
+
+    // 1. Try matching standard Decimal Degrees (e.g., "8.5833, 77.2604" or "8.5833 77.2604")
+    const ddRegex = /^(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)$/;
+    let ddMatch = input.match(ddRegex);
+    if (ddMatch) {
+        return { 
+            lat: parseFloat(ddMatch[1]), 
+            lng: parseFloat(ddMatch[2]) 
+        };
+    }
+
+    // 2. Try matching Degrees Minutes Seconds (DMS)
+    // Helper to calculate DMS to Decimal
+    const parseDMS = (str) => {
+        // Matches values like: 8° 35' 0" N  or  8°35'N
+        const match = str.match(/(\d+)[°\s]+(\d+)['’\s]+(?:(\d+(?:\.\d+)?)[”"\s]*)?([NSEW])/i);
+        if (!match) return NaN;
+        
+        const degrees = parseFloat(match[1]);
+        const minutes = parseFloat(match[2]);
+        const seconds = match[3] ? parseFloat(match[3]) : 0;
+        const direction = match[4].toUpperCase();
+        
+        let dd = degrees + (minutes / 60) + (seconds / 3600);
+        
+        // Make South and West negative
+        if (direction === 'S' || direction === 'W') {
+            dd = dd * -1;
+        }
+        return dd;
+    };
+
+    // Split the input string into Latitude and Longitude halves
+    // Looks for a comma or a space separating the N/S part from the E/W part
+    const parts = input.match(/(.+?[NS])[,;\s]+(.+?[EW])/i);
+    if (parts) {
+        return { 
+            lat: parseDMS(parts[1]), 
+            lng: parseDMS(parts[2]) 
+        };
+    }
+
+    return null;
+},
         createKml: function () {
             const xmlString = '<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2"><Document/></kml>';
             const parser = new DOMParser();
@@ -373,8 +519,7 @@ const BirdCount = (function () {
                 const options = {
                     pathString: this.polygonPathsFromBounds(rectangleInfo.options.bounds),
                     description: kmlDescription(rectangleInfo.options),
-                    // Strictly use the first column (subCell) for the label
-                    name: rectangleInfo.options.subCell, 
+                    name: subCellName + (siteName && siteName.trim() !== '' ? ', ' + siteName : ''),
                     style: rectangleInfo.isReviewed() ? 'reviewed' : ('status-' + rectangleInfo.getValue('status')),
                     drawOrder: 2
                 };

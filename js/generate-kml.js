@@ -184,8 +184,13 @@ function buildKml(name, cells) {
   const placemarks = cells.map(cell => {
     const ring = cell.points.map(p => `${p[0]},${p[1]},0`).join(' ');
     const styleId = 'count-' + (COUNT_COLORS[cell.count] ? cell.count : '0');
-    return `  <Placemark>\n` +
-      `    <name>${xmlEscape(cell.rawId)}</name>\n` +
+
+    const subCellName = cell.rawId;
+    const siteName = cell.meta.site;
+    const displayName = subCellName + (siteName && String(siteName).trim() !== '' ? ', ' + siteName : '');
+
+return `  <Placemark>\n` +
+      `    <name>${xmlEscape(displayName)}</name>\n` +
       `    <description><![CDATA[${descHtml(cell.meta)}]]></description>\n` +
       `    <styleUrl>#${styleId}</styleUrl>\n` +
       `    <Polygon><outerBoundaryIs><LinearRing><coordinates>${ring}</coordinates></LinearRing></outerBoundaryIs></Polygon>\n` +
@@ -220,8 +225,12 @@ function buildGpx(name, cells) {
     const desc = descText(cell.meta);
     const links = cell.meta.lists
       .map((u, i) => `    <link href="${xmlEscape(u)}"><text>List${i + 1}</text></link>`).join('\n');
+    const subCellName = cell.rawId;
+    const siteName = cell.meta.site;
+    const displayName = subCellName + (siteName && String(siteName).trim() !== '' ? ', ' + siteName : '');
+
     return `  <trk>\n` +
-      `    <name>${xmlEscape(cell.rawId)}</name>\n` +
+      `    <name>${xmlEscape(displayName)}</name>\n` +
       (desc ? `    <desc>${xmlEscape(desc)}</desc>\n` : '') +
       (links ? links + '\n' : '') +
       `    <trkseg>\n${pts}\n    </trkseg>\n` +
