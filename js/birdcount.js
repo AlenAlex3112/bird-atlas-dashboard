@@ -88,6 +88,8 @@ const BirdCount = (function () {
         this.userLocationMarker = null;
         this._plottedMarker = null;
         this._pendingCoord = null;
+        this._highlightSaved = null;
+        this._highlightTimer = null;
         this.showCluster = false;
     };
 
@@ -404,6 +406,55 @@ const BirdCount = (function () {
             return this.plotCoordinate(coords.lat, coords.lng);
         },
 
+        // --- Temporary highlight of one or more cells (used by owner search) ---
+        // Zooms to fit the given cells and flashes them for a few seconds, then
+        // restores each rectangle's original style.
+        _highlightAndZoom: function (infos) {
+            if (!this.map || !infos || !infos.length) return;
+            let union = null;
+            infos.forEach(function (info) {
+                if (!info.options.bounds) return;
+                const b = L.latLngBounds(info.options.bounds);
+                union = union ? union.extend(b) : b;
+            });
+            if (union && union.isValid()) {
+                this.map.fitBounds(union, { padding: [50, 50], maxZoom: 14 });
+            }
+            this._flashCells(infos);
+        },
+
+        _flashCells: function (infos) {
+            const self = this;
+            this._clearHighlight();
+            const saved = [];
+            infos.forEach(function (info) {
+                const layer = self.gridLayers[info.options.subCell];
+                if (!layer || typeof layer.setStyle !== 'function') return;
+                saved.push({
+                    layer: layer,
+                    style: {
+                        color: layer.options.color, weight: layer.options.weight,
+                        opacity: layer.options.opacity, fillColor: layer.options.fillColor,
+                        fillOpacity: layer.options.fillOpacity
+                    }
+                });
+                layer.setStyle({ color: '#ff2d55', weight: 4, opacity: 1, fillColor: '#ff2d55', fillOpacity: 0.55 });
+                if (typeof layer.bringToFront === 'function') layer.bringToFront();
+            });
+            this._highlightSaved = saved;
+            this._highlightTimer = setTimeout(function () { self._clearHighlight(); }, 4000);
+        },
+
+        _clearHighlight: function () {
+            if (this._highlightTimer) { clearTimeout(this._highlightTimer); this._highlightTimer = null; }
+            if (this._highlightSaved) {
+                this._highlightSaved.forEach(function (s) {
+                    if (s.layer && typeof s.layer.setStyle === 'function') s.layer.setStyle(s.style);
+                });
+                this._highlightSaved = null;
+            }
+        },
+
         // Wire the two floating search bars to THIS map. Called from recenter(),
         // so whichever district is currently on screen owns the shared inputs.
         bindSearchControls: function () {
@@ -436,28 +487,55 @@ const BirdCount = (function () {
                 cellResults.innerHTML = '';
                 if (!query) { cellResults.style.display = 'none'; return; }
 
-                const matches = _(self.rectangleInfos).filter(function (info) {
-                    const subCell = (info.options.subCell || '').toLowerCase();
-                    const site = (info.options.site || '').toLowerCase();
-                    return subCell.indexOf(query) >= 0 || site.indexOf(query) >= 0;
+                const results = [];
+
+                // Owner matches, grouped - one owner can cover many cells.
+                const ownerGroups = {};
+                _(self.rectangleInfos).each(function (info) {
+                    const owner = (info.options.owner || '').trim();
+                    if (owner && owner.toLowerCase().indexOf(query) >= 0) {
+                        (ownerGroups[owner] = ownerGroups[owner] || []).push(info);
+                    }
+                });
+                Object.keys(ownerGroups).forEach(function (owner) {
+                    results.push({ type: 'owner', owner: owner, infos: ownerGroups[owner] });
                 });
 
-                if (!matches.length) { cellResults.style.display = 'none'; return; }
+                // Cell matches (sub-cell id or site name), listed individually.
+                _(self.rectangleInfos).each(function (info) {
+                    const subCell = (info.options.subCell || '').toLowerCase();
+                    const site = (info.options.site || '').toLowerCase();
+                    if (subCell.indexOf(query) >= 0 || site.indexOf(query) >= 0) {
+                        results.push({ type: 'cell', info: info });
+                    }
+                });
+
+                if (!results.length) { cellResults.style.display = 'none'; return; }
 
                 cellResults.style.display = 'block';
-                _(matches).first(10).forEach(function (info) {
-                    const siteName = info.options.site;
-                    const displayName = info.options.subCell +
-                        (siteName && siteName.trim() !== '' ? ', ' + siteName : '');
+                results.slice(0, 12).forEach(function (r) {
                     const li = document.createElement('li');
-                    li.textContent = displayName;
-                    li.addEventListener('click', function () {
-                        cellInput.value = displayName;
-                        cellResults.style.display = 'none';
-                        if (self.map && info.options.bounds) {
-                            self.map.fitBounds(info.options.bounds, { padding: [50, 50], maxZoom: 14 });
-                        }
-                    });
+                    if (r.type === 'owner') {
+                        const n = r.infos.length;
+                        li.textContent = 'Owner: ' + r.owner + ' (' + n + (n === 1 ? ' cell' : ' cells') + ')';
+                        li.style.fontWeight = 'bold';
+                        li.addEventListener('click', function () {
+                            cellInput.value = r.owner;
+                            cellResults.style.display = 'none';
+                            self._highlightAndZoom(r.infos);
+                        });
+                    } else {
+                        const info = r.info;
+                        const siteName = info.options.site;
+                        const displayName = info.options.subCell +
+                            (siteName && siteName.trim() !== '' ? ', ' + siteName : '');
+                        li.textContent = displayName;
+                        li.addEventListener('click', function () {
+                            cellInput.value = displayName;
+                            cellResults.style.display = 'none';
+                            self._highlightAndZoom([info]);
+                        });
+                    }
                     cellResults.appendChild(li);
                 });
             };
